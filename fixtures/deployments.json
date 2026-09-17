@@ -1,0 +1,5 @@
+[
+  {"id":"dep-001","service":"catalog","sha":"7a10c1d","version":"catalog-1.0.0","deployed_at":"2026-09-10T12:00:00Z","change":"baseline"},
+  {"id":"dep-002","service":"payment","sha":"81bd5a2","version":"payment-1.0.0","deployed_at":"2026-09-10T12:05:00Z","change":"baseline"},
+  {"id":"dep-003","service":"checkout","sha":"942aa31","version":"checkout-1.0.0","deployed_at":"2026-09-10T12:10:00Z","change":"baseline"}
+]

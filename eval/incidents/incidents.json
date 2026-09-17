@@ -1,0 +1,968 @@
+[
+  {
+    "id": "EVAL-001",
+    "service": "catalog",
+    "fault": {
+      "force_status": 500
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 15% in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-002",
+    "service": "catalog",
+    "fault": {
+      "force_status": 502
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 18% in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-003",
+    "service": "catalog",
+    "fault": {
+      "force_status": 503
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 21% in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-004",
+    "service": "catalog",
+    "fault": {
+      "error_rate": 1.0
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 24% in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-005",
+    "service": "catalog",
+    "fault": {
+      "error_rate": 0.7
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 27% in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-006",
+    "service": "catalog",
+    "fault": {
+      "latency_ms": 2500
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 3.3s in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-007",
+    "service": "catalog",
+    "fault": {
+      "latency_ms": 3000
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.1s in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-008",
+    "service": "catalog",
+    "fault": {
+      "latency_ms": 1800
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.3s in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-009",
+    "service": "catalog",
+    "fault": {
+      "latency_ms": 2300,
+      "error_rate": 0.5
+    },
+    "category": "mixed",
+    "alert": "Checkout API is showing elevated 5xx responses and p95 latency above 2 seconds.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "error",
+      "failure"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-010",
+    "service": "catalog",
+    "fault": {
+      "force_status": 429
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 21% in the last five minutes.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-011",
+    "service": "payment",
+    "fault": {
+      "force_status": 500
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 24% in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-012",
+    "service": "payment",
+    "fault": {
+      "force_status": 502
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 27% in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-013",
+    "service": "payment",
+    "fault": {
+      "force_status": 503
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 30% in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-014",
+    "service": "payment",
+    "fault": {
+      "error_rate": 1.0
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 12% in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-015",
+    "service": "payment",
+    "fault": {
+      "error_rate": 0.7
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 15% in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-016",
+    "service": "payment",
+    "fault": {
+      "latency_ms": 2500
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.5s in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-017",
+    "service": "payment",
+    "fault": {
+      "latency_ms": 3000
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.7s in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-018",
+    "service": "payment",
+    "fault": {
+      "latency_ms": 1800
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.9s in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-019",
+    "service": "payment",
+    "fault": {
+      "latency_ms": 2300,
+      "error_rate": 0.5
+    },
+    "category": "mixed",
+    "alert": "Checkout API is showing elevated 5xx responses and p95 latency above 2 seconds.",
+    "expected_service": "payment",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "error",
+      "failure"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-020",
+    "service": "payment",
+    "fault": {
+      "force_status": 429
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 30% in the last five minutes.",
+    "expected_service": "payment",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-021",
+    "service": "catalog",
+    "fault": {
+      "corrupt_response": true
+    },
+    "category": "data_contract",
+    "alert": "Checkout API returns 502 for a subset of otherwise valid orders.",
+    "expected_service": "catalog",
+    "expected_any": [
+      "price",
+      "pricing",
+      "invalid",
+      "data",
+      "contract"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "code_fix",
+      "rollback",
+      "config_change"
+    ]
+  },
+  {
+    "id": "EVAL-022",
+    "service": "checkout",
+    "fault": {
+      "force_status": 500
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 15% in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-023",
+    "service": "checkout",
+    "fault": {
+      "force_status": 503
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 18% in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-024",
+    "service": "checkout",
+    "fault": {
+      "force_status": 504
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 21% in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-025",
+    "service": "checkout",
+    "fault": {
+      "force_status": 429
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 24% in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-026",
+    "service": "checkout",
+    "fault": {
+      "error_rate": 1.0
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 27% in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-027",
+    "service": "checkout",
+    "fault": {
+      "error_rate": 0.7
+    },
+    "category": "availability",
+    "alert": "Checkout API error rate increased to 30% in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "error",
+      "failure",
+      "5xx",
+      "500",
+      "502",
+      "503",
+      "504",
+      "429"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-028",
+    "service": "checkout",
+    "fault": {
+      "latency_ms": 2500
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.1s in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-029",
+    "service": "checkout",
+    "fault": {
+      "latency_ms": 3000
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.3s in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  },
+  {
+    "id": "EVAL-030",
+    "service": "checkout",
+    "fault": {
+      "latency_ms": 1800
+    },
+    "category": "latency",
+    "alert": "Checkout API p95 latency increased to 2.5s in the last five minutes.",
+    "expected_service": "checkout",
+    "expected_any": [
+      "latency",
+      "timeout",
+      "slow"
+    ],
+    "traffic_requests": 16,
+    "concurrency": 8,
+    "expected_tools": [
+      "get_metrics",
+      "search_logs",
+      "get_traces",
+      "get_changes",
+      "search_runbooks"
+    ],
+    "acceptable_actions": [
+      "rollback",
+      "config_change",
+      "code_fix"
+    ]
+  }
+]

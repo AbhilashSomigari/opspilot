@@ -1,0 +1,111 @@
+name: opspilot
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: opspilot
+      POSTGRES_PASSWORD: opspilot
+      POSTGRES_DB: opspilot
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opspilot -d opspilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  jaeger:
+    image: jaegertracing/jaeger:2.20.0
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+
+  catalog:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: catalog }
+    environment: &service-env
+      LOG_DIR: /var/log/opspilot
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+    ports: ["8001:8000"]
+    volumes: ["service_logs:/var/log/opspilot"]
+    depends_on: [jaeger]
+
+  payment:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: payment }
+    environment: *service-env
+    ports: ["8002:8000"]
+    volumes: ["service_logs:/var/log/opspilot"]
+    depends_on: [jaeger]
+
+  checkout:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: checkout }
+    environment:
+      <<: *service-env
+      CATALOG_URL: http://catalog:8000
+      PAYMENT_URL: http://payment:8000
+    ports: ["8003:8000"]
+    volumes: ["service_logs:/var/log/opspilot"]
+    depends_on: [catalog, payment, jaeger]
+
+  prometheus:
+    image: prom/prometheus:v3.13.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+    depends_on: [catalog, payment, checkout]
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: opspilot
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://opspilot:opspilot@postgres:5432/opspilot
+      PROMETHEUS_URL: http://prometheus:9090
+      JAEGER_URL: http://jaeger:16686
+      LOG_DIR: /var/log/opspilot
+      REPO_ROOT: /workspace
+      LANGGRAPH_STRICT_MSGPACK: "true"
+    ports: ["8080:8080"]
+    volumes:
+      - service_logs:/var/log/opspilot:ro
+      - ./eval:/workspace/eval
+    depends_on:
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+      jaeger:
+        condition: service_started
+
+  dashboard:
+    build: ./dashboard
+    environment:
+      AGENT_URL: http://agent:8080
+    ports: ["3001:3000"]
+    depends_on: [agent]
+
+volumes:
+  pgdata:
+  service_logs:

@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.next/
+node_modules/
+eval/results/
+*.log
+.DS_Store
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
+PROGRESS.md
+PROJECT_REPORT.md

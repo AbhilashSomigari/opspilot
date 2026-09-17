@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+scrape_configs:
+  - job_name: opspilot-services
+    metrics_path: /metrics/
+    static_configs:
+      - targets: ["catalog:8000", "payment:8000", "checkout:8000"]

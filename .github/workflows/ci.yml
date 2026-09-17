@@ -1,0 +1,40 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install '.[dev]'
+      - run: pytest -q
+      - run: python -m py_compile $(find agent services eval -name '*.py')
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - {name: catalog, context: ., dockerfile: services/Dockerfile, build_arg: SERVICE=catalog}
+          - {name: payment, context: ., dockerfile: services/Dockerfile, build_arg: SERVICE=payment}
+          - {name: checkout, context: ., dockerfile: services/Dockerfile, build_arg: SERVICE=checkout}
+          - {name: agent, context: ., dockerfile: agent/Dockerfile, build_arg: ''}
+          - {name: dashboard, context: dashboard, dockerfile: dashboard/Dockerfile, build_arg: ''}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.name }}
+        shell: bash
+        run: |
+          args=()
+          if [[ -n "${{ matrix.build_arg }}" ]]; then
+            args+=(--build-arg "${{ matrix.build_arg }}")
+          fi
+          docker build "${args[@]}" -f "${{ matrix.dockerfile }}" -t "opspilot/${{ matrix.name }}:${{ github.sha }}" "${{ matrix.context }}"

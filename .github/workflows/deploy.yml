@@ -1,0 +1,51 @@
+name: Build, Push, Deploy to EKS
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: opspilot
+
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to ECR
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> "$GITHUB_ENV"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      - name: Build and push application images
+        shell: bash
+        run: |
+          REGISTRY="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/opspilot"
+          for svc in catalog payment checkout; do
+            docker build -f services/Dockerfile --build-arg "SERVICE=$svc" -t "$REGISTRY/$svc:${GITHUB_SHA}" -t "$REGISTRY/$svc:latest" .
+            docker push "$REGISTRY/$svc:${GITHUB_SHA}"
+            docker push "$REGISTRY/$svc:latest"
+          done
+          docker build -f agent/Dockerfile -t "$REGISTRY/agent:${GITHUB_SHA}" -t "$REGISTRY/agent:latest" .
+          docker push "$REGISTRY/agent:${GITHUB_SHA}"
+          docker push "$REGISTRY/agent:latest"
+          docker build -f dashboard/Dockerfile -t "$REGISTRY/dashboard:${GITHUB_SHA}" -t "$REGISTRY/dashboard:latest" dashboard
+          docker push "$REGISTRY/dashboard:${GITHUB_SHA}"
+          docker push "$REGISTRY/dashboard:latest"
+      - name: Configure kubectl and deploy
+        run: |
+          aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
+          REGISTRY="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/opspilot"
+          sed "s#REPLACE_WITH_ECR#$REGISTRY#g" infra/k8s/base.yaml | kubectl apply -f -
+          kubectl -n opspilot rollout status deployment/catalog --timeout=180s
+          kubectl -n opspilot rollout status deployment/payment --timeout=180s
+          kubectl -n opspilot rollout status deployment/checkout --timeout=180s
+          kubectl -n opspilot rollout status deployment/agent --timeout=180s
+          kubectl -n opspilot rollout status deployment/dashboard --timeout=180s
