@@ -3,4 +3,7 @@ output "ecr_repositories" { value = { for k, v in aws_ecr_repository.images : k 
 output "postgres_endpoint" { value = aws_db_instance.postgres.address }
 output "postgres_username" { value = aws_db_instance.postgres.username }
 output "postgres_database" { value = aws_db_instance.postgres.db_name }
-output "postgres_password" { value = random_password.db.result, sensitive = true }
+output "postgres_password" {
+  value     = random_password.db.result
+  sensitive = true
+}

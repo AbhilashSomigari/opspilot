@@ -13,5 +13,8 @@ eval/results/
 terraform.tfstate
 terraform.tfstate.*
 .terraform/
+build/
+*.egg-info/
+dashboard/*.tsbuildinfo
 PROGRESS.md
 PROJECT_REPORT.md
