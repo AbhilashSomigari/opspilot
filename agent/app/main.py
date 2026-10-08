@@ -4,12 +4,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 
+from .auth import authenticated_approver
 from .config import settings
 from .db import (
-    audit, audit_trail, create_incident, get_incident, init_db, mark_approved, record_change, save_result,
+    audit, audit_trail, claim_decision, create_incident, get_incident, init_db, mark_approved, record_change,
+    save_result,
 )
 from .graph.workflow import run_workflow
 from .models.schemas import ChangeEvent, IncidentRequest
@@ -95,38 +97,40 @@ def incident_audit(incident_id: str):
 
 class Approval(BaseModel):
     approved: bool
-    actor: str
 
 
 @app.post("/incidents/{incident_id}/approval")
-async def approve(incident_id: str, decision: Approval):
-    row = get_incident(incident_id)
-    if not row:
+async def approve(incident_id: str, decision: Approval, actor: str = Depends(authenticated_approver)):
+    if not get_incident(incident_id):
         raise HTTPException(404, "incident not found")
-    if row["status"] not in {"awaiting_approval", "approved"}:
-        raise HTTPException(409, f"incident status is {row['status']}")
+    # The approval check is server-side. The model cannot bypass it by writing "approved" in a prompt.
+    row = claim_decision(incident_id, actor, "executing" if decision.approved else "rejected")
+    if not row:
+        raise HTTPException(409, f"incident status is {get_incident(incident_id)['status']}")
     if not decision.approved:
-        mark_approved(incident_id, decision.actor, "rejected")
-        audit(incident_id, "approval", decision.actor, "action_rejected", output_data={"approved": False})
+        audit(incident_id, "approval", actor, "action_rejected", output_data={"approved": False})
         return {"status": "rejected", "executed": False}
 
-    # The approval check is server-side. The model cannot bypass it by writing "approved" in a prompt.
     action = row.get("proposed_action") or {}
-    audit(incident_id, "approval", decision.actor, "action_approved", output_data=action)
-    mark_approved(incident_id, decision.actor, "approved")
+    kind = action.get("kind", "unknown")
+    audit(incident_id, "approval", actor, "action_approved", output_data=action)
+    try:
+        if kind == "github_issue":
+            result = await create_github_issue(
+                f"[OpsPilot] {row['title']}",
+                (row.get("result") or {}).get("report", "Incident investigation"),
+            )
+        else:
+            # Destructive rollback/config/code mutation is deliberately not wired into the MVP executor.
+            # Approval records intent, while execution remains simulated until a policy-scoped deploy tool exists.
+            result = {"simulated": True, "kind": kind, "description": action.get("description")}
+    except Exception as exc:
+        audit(incident_id, "action", "executor", kind, input_data=action, ok=False, error=str(exc))
+        mark_approved(incident_id, actor, "action_failed")
+        raise HTTPException(502, f"approved action failed: {exc}") from exc
 
-    if action.get("kind") == "github_issue":
-        result = await create_github_issue(
-            f"[OpsPilot] {row['title']}",
-            (row.get("result") or {}).get("report", "Incident investigation"),
-        )
-    else:
-        # Destructive rollback/config/code mutation is deliberately not wired into the MVP executor.
-        # Approval records intent, while execution remains simulated until a policy-scoped deploy tool exists.
-        result = {"simulated": True, "kind": action.get("kind"), "description": action.get("description")}
-
-    audit(incident_id, "action", "executor", action.get("kind", "unknown"), input_data=action, output_data=result)
-    mark_approved(incident_id, decision.actor, "action_executed" if not result.get("simulated") else "approved_simulation")
+    audit(incident_id, "action", "executor", kind, input_data=action, output_data=result)
+    mark_approved(incident_id, actor, "action_executed" if not result.get("simulated") else "approved_simulation")
     return {"status": "approved", "executed": not result.get("simulated", False), "result": result}
 
 @app.get("/evaluation/latest")

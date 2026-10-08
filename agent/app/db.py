@@ -98,6 +98,21 @@ def get_incident(incident_id: str) -> dict[str, Any] | None:
         return c.execute("SELECT * FROM incidents WHERE id=%s", (incident_id,)).fetchone()
 
 
+def claim_decision(incident_id: str, actor: str, status: str) -> dict[str, Any] | None:
+    """Atomically move an incident out of its decidable states; None if it isn't decidable.
+
+    Of two concurrent decisions only one UPDATE matches, so an action can't execute twice.
+    A failed action stays decidable so it can be retried.
+    """
+    with conn() as c:
+        return c.execute(
+            """UPDATE incidents SET approved_by=%s, status=%s, updated_at=now()
+               WHERE id=%s AND status IN ('awaiting_approval', 'action_failed')
+               RETURNING *""",
+            (actor, status, incident_id),
+        ).fetchone()
+
+
 def mark_approved(incident_id: str, actor: str, status: str = "approved") -> None:
     with conn() as c:
         c.execute(
