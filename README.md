@@ -2,7 +2,7 @@
 
 OpsPilot is a portfolio-grade AI/SRE system that investigates production incidents by correlating **logs, Prometheus metrics, OpenTelemetry traces, deployment/GitHub history, runbooks, and previous incidents**. It ranks likely root causes, proposes a remediation, requires explicit human approval before consequential actions, and records a complete audit trail.
 
-This repository is intentionally more than a chatbot: it contains a fault-injectable distributed application, real observability, retrieval, agent orchestration, evaluation, approval controls, CI/CD, Kubernetes/AWS infrastructure, and a metrics dashboard.
+This repository is intentionally more than a chatbot: it contains a fault-injectable distributed application, real observability, retrieval, agent orchestration, evaluation, approval controls, CI, Kubernetes/AWS infrastructure-as-code, and a metrics dashboard.
 
 ## Architecture
 
@@ -47,32 +47,35 @@ flowchart LR
 - **Evaluation metrics:** root-cause Top-1 accuracy, proposed-resolution success, tool-call correctness, unsupported-claim rate, unsafe-action rate, mean/p95 investigation latency, and configurable model cost.
 - **Single-prompt baseline:** receives only the alert and no telemetry/tools.
 - **Dashboard:** Next.js UI with aggregate metrics, baseline comparison, category performance, and per-incident results.
-- **Cloud/CI/CD:** GitHub Actions, ECR build/push, EKS deployment manifests, and Terraform for VPC, EKS, ECR, and RDS PostgreSQL.
-- **Hosted or open-source LLM:** OpenAI by default, or an OpenAI-compatible vLLM server such as xLAM for tool calling.
+- **CI and cloud infrastructure-as-code:** GitHub Actions CI runs the tests and builds every image on each PR. A manual ECR/EKS deploy workflow, Kubernetes manifests, and Terraform for VPC, EKS, ECR and RDS PostgreSQL are included. The Terraform passes `terraform validate`, but the AWS path has not been deployed end to end (see section 11).
+- **Hosted or open-source LLM:** OpenAI by default, or an OpenAI-compatible vLLM server such as xLAM for tool calling. The vLLM layer is provided but not yet run; all published results use `gpt-5-mini` (see section 7).
 
 ## Results
 
-Measured on 2026-10-08 against the 30 hidden-fault incidents (commit `d1b970d`), using `gpt-5-mini` through OpenAI. The baseline is the same model given only the alert text, with no tools or telemetry.
+Measured on 2026-10-08 over **three full runs** of the 30 hidden-fault incidents, using `gpt-5-mini` through OpenAI (agent code as of `d1b970d`). The baseline is the same model given only the alert text, with no tools or telemetry. Values are the mean across runs, with the min–max range in brackets.
 
-| Metric | OpsPilot | Alert-only baseline |
+| Metric | OpsPilot (3 runs) | Alert-only baseline (3 runs) |
 |---|---|---|
-| Root-cause Top-1 (failing service + failure category) | **96.7%** (29/30) | 30.0% (9/30) |
-| Incident-resolution success | 56.7% (17/30) | — |
-| Tool-call correctness | 99.3% | — |
-| Unsupported-claim rate | 7.8% | — |
-| Unsafe-action rate | 0% | — |
-| Investigation time | mean 66.5 s, p95 83.9 s | — |
-| Tokens per incident | ~55k input / ~7.8k output | — |
+| Root-cause Top-1 (failing service + failure category) | **93.3%** [86.7–96.7%] | 30.0% [30.0–30.0%] |
+| Incident-resolution success | 42.2% [33.3–56.7%] | — |
+| Tool-call correctness | 99.8% [99.3–100%] | — |
+| Unsupported-claim rate | 9.3% [7.8–10.0%] | — |
+| Unsafe-action rate | 0% in every run | — |
+| Investigation time | mean 66.3 s, p95 88.0 s [83.9–93.6 s] | — |
+| Cost per incident | $0.030 [$0.029–$0.031] | — |
+| Tokens per incident | ~58k input / ~7.8k output | — |
 
-By category: availability 18/18, latency 9/9, mixed 2/2, data contract 0/1.
+Cost uses OpenAI's published `gpt-5-mini` rates ($0.25 per 1M input tokens, $2.00 per 1M output tokens). It's an upper bound, because cached-input discounts aren't tracked.
 
-The one miss is the data-contract case. Catalog serves a corrupt price, payment rejects the charge with 400, and checkout returns 502. The agent finds the decisive clue (`amount=-1.0`) but attributes it to checkout, which computes the amount, rather than to catalog, which changed at the time of the fault.
+What the misses are:
+- **The data-contract case (EVAL-021) fails in all three runs.** Catalog serves a corrupt price, payment rejects the charge with 400, and checkout returns 502. The agent finds the decisive clue (`amount=-1.0`) but attributes it to checkout, which computes the amount, rather than to catalog, which changed at the time of the fault.
+- **Three misses in run 3 were formatting errors.** The diagnosis was right, but the model wrote a sentence such as `"availability: the origin returns errors"` into the `failure_category` field instead of the bare category. Counting those as correct, Top-1 is 96.7% in every run. The headline keeps them as misses, because the agent's output should be valid.
+- **Resolution success varies the most.** With the same evidence, the agent opens a ticket (`github_issue`) instead of proposing a remediation in 12, 19 and 16 of 30 cases across the runs. It's inconsistent about when evidence is strong enough to act.
 
-![OpsPilot evaluation dashboard](docs/dashboard.png)
+![OpsPilot evaluation dashboard, run 1](docs/dashboard.png)
 
 Caveats:
-- These numbers come from a single run. `gpt-5-mini` accepts only its default temperature, so run-to-run variance is not measured.
-- The environment is a synthetic three-service system with injected faults.
+- The environment is a synthetic three-service system with injected faults, and the suite has only one data-contract case.
 - Before these numbers were trusted, the harness itself was hardened: telemetry is scoped to each case, injected faults never appear in logs or traces, every fault ships with a change event and a decoy change, and answers are scored as structured fields rather than keywords. See [section 9](#9-failure-categories-covered-by-the-30-incidents).
 
 ## Repository layout
@@ -280,6 +283,8 @@ If `OPENAI_API_KEY` is absent, deterministic 256-dimensional hash embeddings kee
 
 ## 7. Open-source model through vLLM
 
+> **Status:** provided but not yet run or evaluated. All results in this README use OpenAI `gpt-5-mini`.
+
 On a Linux machine with an NVIDIA GPU:
 
 ```bash
@@ -332,12 +337,12 @@ The dashboard updates from those files through `GET /evaluation/latest`.
 | Metric | Definition in this repo |
 |---|---|
 | Root-cause Top-1 | Structured `root_cause_service` equals the hidden failing service and `failure_category` (availability / latency / data_contract) matches the injected fault; a mixed fault accepts either symptom |
-| Incident-resolution success | Correct Top-1 + actionable remediation proposal + no pre-approval action |
+| Incident-resolution success | Correct Top-1 + an acceptable remediation proposed (rollback, config change or code fix for every current case) + no action before approval. It scores the *proposal*: no remediation is executed, so service recovery isn't measured |
 | Tool-call correctness | Fraction of expected investigation tool families used |
 | Unsupported-claim rate | Fraction of root-cause hypotheses lacking supporting evidence citations |
 | Unsafe-action rate | Any action event occurring before explicit human approval |
 | Avg / p95 investigation time | Wall-clock time for the complete investigation request |
-| Cost / incident | Token usage multiplied by user-configured model input/output rates |
+| Cost / incident | Token usage multiplied by the configured input/output rates. Cached-input discounts aren't tracked, so this is an upper bound |
 | Baseline | Same model receives only the symptom alert and no tools/evidence |
 
 To compute cost, set:
@@ -386,6 +391,8 @@ It exposes tools for:
 The primary LangGraph implementation uses the same underlying Python tool functions, so MCP and the application do not diverge in business logic.
 
 ## 11. AWS + Kubernetes
+
+> **Status:** the Terraform passes `terraform validate`, and the manifests and deploy workflow are written, but this stack has not been applied or deployed end to end. Applying it creates billable AWS resources (EKS control plane, NAT gateway, RDS).
 
 Terraform creates:
 
