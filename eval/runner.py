@@ -28,6 +28,8 @@ SERVICE_URLS = {
     "checkout": os.getenv("CHECKOUT_URL", "http://localhost:8003"),
 }
 AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8080")
+# Sent only to the agent API; the fault-injectable services don't need it.
+AGENT_HEADERS = {"Authorization": f"Bearer {os.getenv('OPSPILOT_API_TOKEN', '')}"}
 # Prometheus scrapes every 2s. A counter series created and fully incremented between two
 # scrapes shows zero increase, so traffic is spread across several scrapes.
 TRAFFIC_SPREAD_S = 8
@@ -61,7 +63,7 @@ async def record_changes(client: httpx.AsyncClient, case: dict, at: datetime) ->
             "sha": hashlib.sha1(f"{case['id']}:{service}".encode()).hexdigest()[:7],
             "change": rng.choice(["config rollout", "image update", "dependency bump"]),
             "deployed_at": (at + timedelta(seconds=offset_s)).isoformat(),
-        })
+        }, headers=AGENT_HEADERS)
         r.raise_for_status()
 
 
@@ -105,13 +107,15 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
             "severity": "sev2",
             "window_start": window_start.isoformat(),
         },
+        headers=AGENT_HEADERS,
         timeout=INVESTIGATION_TIMEOUT_S,
     )
     latency_s = time.perf_counter() - started
     r.raise_for_status()
     result = r.json()
 
-    audit = (await client.get(f"{AGENT_URL}/incidents/{result['incident_id']}/audit", timeout=20)).json()["events"]
+    audit_url = f"{AGENT_URL}/incidents/{result['incident_id']}/audit"
+    audit = (await client.get(audit_url, headers=AGENT_HEADERS, timeout=20)).json()["events"]
     tool_names = {e["name"] for e in audit if e["event_type"] == "tool_call" and e["ok"]}
     input_tokens = sum((e.get("output") or {}).get("prompt_tokens", 0) for e in audit if e["event_type"] == "model_call")
     output_tokens = sum((e.get("output") or {}).get("completion_tokens", 0) for e in audit if e["event_type"] == "model_call")
@@ -204,6 +208,8 @@ def summarize(rows: list[dict]) -> dict:
 
 
 async def main() -> None:
+    if not os.getenv("OPSPILOT_API_TOKEN"):
+        raise SystemExit("Set OPSPILOT_API_TOKEN to a client token listed in the agent's API_TOKENS.")
     rows = []
     async with httpx.AsyncClient() as client:
         for case in CASES:

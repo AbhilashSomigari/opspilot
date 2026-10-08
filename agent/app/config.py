@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     log_dir: str = "/var/log/opspilot"
     github_token: str | None = None
     github_repository: str | None = None
-    # JSON object mapping approver identity -> bearer token, e.g. {"alice@example.com": "<token>"}.
+    # JSON objects mapping identity -> bearer token, e.g. {"alice@example.com": "<token>"}.
+    api_tokens: dict[str, str] = {}
     approver_tokens: dict[str, str] = {}
     repo_root: str = "/workspace"
     model_input_cost_per_1m: float = 0.0
