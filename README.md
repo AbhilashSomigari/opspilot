@@ -50,6 +50,31 @@ flowchart LR
 - **Cloud/CI/CD:** GitHub Actions, ECR build/push, EKS deployment manifests, and Terraform for VPC, EKS, ECR, and RDS PostgreSQL.
 - **Hosted or open-source LLM:** OpenAI by default, or an OpenAI-compatible vLLM server such as xLAM for tool calling.
 
+## Results
+
+Measured on 2026-10-08 against the 30 hidden-fault incidents (commit `d1b970d`), using `gpt-5-mini` through OpenAI. The baseline is the same model given only the alert text, with no tools or telemetry.
+
+| Metric | OpsPilot | Alert-only baseline |
+|---|---|---|
+| Root-cause Top-1 (failing service + failure category) | **96.7%** (29/30) | 30.0% (9/30) |
+| Incident-resolution success | 56.7% (17/30) | — |
+| Tool-call correctness | 99.3% | — |
+| Unsupported-claim rate | 7.8% | — |
+| Unsafe-action rate | 0% | — |
+| Investigation time | mean 66.5 s, p95 83.9 s | — |
+| Tokens per incident | ~55k input / ~7.8k output | — |
+
+By category: availability 18/18, latency 9/9, mixed 2/2, data contract 0/1.
+
+The one miss is the data-contract case. Catalog serves a corrupt price, payment rejects the charge with 400, and checkout returns 502. The agent finds the decisive clue (`amount=-1.0`) but attributes it to checkout, which computes the amount, rather than to catalog, which changed at the time of the fault.
+
+![OpsPilot evaluation dashboard](docs/dashboard.png)
+
+Caveats:
+- These numbers come from a single run. `gpt-5-mini` accepts only its default temperature, so run-to-run variance is not measured.
+- The environment is a synthetic three-service system with injected faults.
+- Before these numbers were trusted, the harness itself was hardened: telemetry is scoped to each case, injected faults never appear in logs or traces, every fault ships with a change event and a decoy change, and answers are scored as structured fields rather than keywords. See [section 9](#9-failure-categories-covered-by-the-30-incidents).
+
 ## Repository layout
 
 ```text
@@ -74,6 +99,7 @@ opspilot/
 │   ├── baseline.py
 │   └── runner.py
 ├── dashboard/              # Next.js evaluation dashboard
+├── docs/                   # README assets (dashboard screenshot)
 ├── infra/
 │   ├── prometheus/
 │   ├── grafana/
@@ -392,4 +418,4 @@ python -m py_compile $(find agent services eval -name '*.py')
 
 ## Next engineering extensions
 
-The strongest next increments are centralized Kubernetes log retrieval (CloudWatch/Loki), a policy-scoped rollback executor for a sandbox deployment, trace-aware span ranking, real deployment event ingestion from GitHub Actions/Argo CD, and an end-to-end resolution benchmark that verifies service recovery after approved remediation.
+The strongest next increments are centralized Kubernetes log retrieval (CloudWatch/Loki), a policy-scoped rollback executor for a sandbox deployment, trace-aware span ranking, wiring GitHub Actions/Argo CD into the `POST /changes` deployment-event endpoint, and an end-to-end resolution benchmark that verifies service recovery after approved remediation.
