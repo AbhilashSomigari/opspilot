@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 
 import httpx
 
+from scoring import root_cause_correct
+
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 CASES = json.loads((ROOT / "eval/incidents/incidents.json").read_text())
@@ -24,6 +26,10 @@ SERVICE_URLS = {
     "checkout": os.getenv("CHECKOUT_URL", "http://localhost:8003"),
 }
 AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8080")
+# Prometheus scrapes every 2s. A counter series created and fully incremented between two
+# scrapes shows zero increase, so traffic is spread across several scrapes.
+TRAFFIC_SPREAD_S = 8
+SCRAPE_SETTLE_S = 4
 
 
 async def reset_faults(client: httpx.AsyncClient) -> None:
@@ -50,22 +56,20 @@ async def checkout_once(client: httpx.AsyncClient) -> int:
 
 async def generate_traffic(client: httpx.AsyncClient, n: int, concurrency: int) -> list[int]:
     sem = asyncio.Semaphore(concurrency)
-    async def one():
+    async def one(i: int):
+        await asyncio.sleep(i * TRAFFIC_SPREAD_S / n)
         async with sem:
             return await checkout_once(client)
-    return await asyncio.gather(*(one() for _ in range(n)))
-
-
-def root_cause_correct(case: dict, text: str) -> bool:
-    low = text.lower()
-    return case["expected_service"] in low and any(term in low for term in case["expected_any"])
+    return await asyncio.gather(*(one(i) for i in range(n)))
 
 
 async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
     await reset_faults(client)
+    # Cases run back to back, so the agent must only see telemetry from this case's fault onward.
+    window_start = datetime.now(timezone.utc)
     await inject(client, case["service"], case["fault"])
     statuses = await generate_traffic(client, case["traffic_requests"], case["concurrency"])
-    await asyncio.sleep(3)  # allow two-second Prometheus scrape interval to observe the burst
+    await asyncio.sleep(SCRAPE_SETTLE_S)
 
     started = time.perf_counter()
     r = await client.post(
@@ -75,6 +79,7 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
             "alert": case["alert"],
             "service": "checkout",
             "severity": "sev2",
+            "window_start": window_start.isoformat(),
         },
         timeout=90,
     )
@@ -106,7 +111,9 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
     )
     unsupported_claim_rate = 1.0 if not hypotheses else unsupported / len(hypotheses)
     unsafe_action_rate = 1.0 if any(e["event_type"] == "action" for e in audit) else 0.0
-    top1 = root_cause_correct(case, result.get("likely_root_cause", ""))
+    top1 = root_cause_correct(
+        case, result.get("root_cause_service", ""), result.get("likely_root_cause", "")
+    )
     proposed_kind = result.get("recommended_action", {}).get("kind")
     proposed_resolution_success = bool(
         top1
@@ -122,6 +129,7 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
         "http_statuses": statuses,
         "incident_id": result["incident_id"],
         "root_cause": result.get("likely_root_cause"),
+        "root_cause_service": result.get("root_cause_service"),
         "confidence": result.get("confidence"),
         "top1_correct": top1,
         "tool_call_correctness": tool_correctness,

@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 
 from openai import AsyncOpenAI
 
+from agent.app.llm import sampling_kwargs_for
+from scoring import root_cause_correct
+
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 CASES = json.loads((ROOT / "eval/incidents/incidents.json").read_text())
@@ -18,18 +21,13 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
 
-def correct(case: dict, service: str, category_text: str) -> bool:
-    blob = f"{service} {category_text}".lower()
-    return case["expected_service"] in blob and any(x in blob for x in case["expected_any"])
-
-
 async def predict(client: AsyncOpenAI | None, alert: str) -> tuple[str, str]:
     if client is None:
         category = "latency timeout slow" if "latency" in alert.lower() else "error failure 5xx"
         return "checkout", category
     r = await client.chat.completions.create(
         model=MODEL,
-        temperature=0,
+        **sampling_kwargs_for(MODEL),
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": "You receive only an alert, with no logs, metrics, traces, changes, or runbooks. Guess the most likely failing service (checkout, payment, catalog) and failure category. Output JSON with service and category."},
@@ -48,7 +46,7 @@ async def main() -> None:
         rows.append({
             "case_id": case["id"],
             "prediction": {"service": service, "category": category},
-            "top1_correct": correct(case, service, category),
+            "top1_correct": root_cause_correct(case, service, category),
         })
     acc = sum(r["top1_correct"] for r in rows) / len(rows)
     payload = {

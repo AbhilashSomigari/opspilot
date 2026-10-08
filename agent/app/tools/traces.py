@@ -1,13 +1,23 @@
 from __future__ import annotations
+
+import time
+
 import httpx
+
 from ..config import settings
+from .base import window_start
 
 
-async def recent_traces(service: str, limit: int = 20) -> dict:
+async def recent_traces(service: str, limit: int = 20, since: float | None = None) -> dict:
     async with httpx.AsyncClient(timeout=8) as client:
         r = await client.get(
             f"{settings.jaeger_url}/api/traces",
-            params={"service": service, "limit": limit, "lookback": "1h"},
+            params={
+                "service": service,
+                "limit": limit,
+                "start": int(window_start(since) * 1_000_000),
+                "end": int(time.time() * 1_000_000),
+            },
         )
         r.raise_for_status()
         payload = r.json()

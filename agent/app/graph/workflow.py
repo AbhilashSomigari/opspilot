@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import operator
-import re
 from datetime import datetime, timezone
 from typing import Annotated, Any, TypedDict
 
@@ -20,9 +19,11 @@ class IncidentState(TypedDict, total=False):
     alert: str
     service: str
     severity: str
+    window_start: float
     evidence: Annotated[list[dict], operator.add]
     hypotheses: list[dict]
     likely_root_cause: str
+    root_cause_service: str
     confidence: float
     recommended_action: dict
     timeline: list[str]
@@ -34,7 +35,9 @@ def _evidence_digest(evidence: list[dict]) -> str:
 
 
 async def gather(state: IncidentState) -> dict:
-    evidence = await investigate_with_tools(state["incident_id"], state["alert"], state["service"])
+    evidence = await investigate_with_tools(
+        state["incident_id"], state["alert"], state["service"], state["window_start"]
+    )
     return {"evidence": evidence}
 
 
@@ -49,7 +52,7 @@ def _metric_scalar(data: Any, key: str) -> float | None:
 
 
 def _fallback_reason(state: IncidentState) -> dict:
-    scores: list[tuple[float, str, list[str]]] = []
+    scores: list[tuple[float, str, str, list[str]]] = []
     for ev in state.get("evidence", []):
         if ev["source"] != "get_metrics" or not isinstance(ev.get("data"), dict):
             continue
@@ -57,14 +60,15 @@ def _fallback_reason(state: IncidentState) -> dict:
         err = _metric_scalar(ev["data"], "error_rate")
         p95 = _metric_scalar(ev["data"], "p95_latency")
         if err is not None:
-            scores.append((err * 2, f"Elevated 5xx failures in {svc}", [ev["citation"]]))
+            scores.append((err * 2, svc, f"Elevated 5xx failures in {svc}", [ev["citation"]]))
         if p95 is not None:
-            scores.append((min(p95 / 3, 1.0), f"Latency regression in {svc}", [ev["citation"]]))
+            scores.append((min(p95 / 3, 1.0), svc, f"Latency regression in {svc}", [ev["citation"]]))
     scores.sort(reverse=True)
     if scores and scores[0][0] > 0.05:
         confidence = min(0.92, max(0.45, scores[0][0]))
-        cause, cites = scores[0][1], scores[0][2]
+        _, root_service, cause, cites = scores[0]
     else:
+        root_service = "unknown"
         cause = f"Insufficient evidence; suspected failure in {state['service']} path"
         confidence = 0.35
         cites = [e["citation"] for e in state.get("evidence", [])[:2]]
@@ -72,6 +76,7 @@ def _fallback_reason(state: IncidentState) -> dict:
     action_kind = "rollback" if "deploy" in state["alert"].lower() else "github_issue"
     return {
         "likely_root_cause": cause,
+        "root_cause_service": root_service,
         "confidence": confidence,
         "hypotheses": [
             {"cause": cause, "confidence": confidence, "supporting_citations": cites, "contradicting_citations": []}
@@ -100,7 +105,7 @@ Service: {state['service']}
 Evidence JSON: {_evidence_digest(state.get('evidence', []))}
 
 Return strict JSON with keys:
-likely_root_cause (string), confidence (0..1), hypotheses (array of up to 3 objects with cause, confidence, supporting_citations, contradicting_citations), and recommended_action (object with kind: rollback|config_change|code_fix|github_issue|none, description, risk: low|medium|high, requires_approval:true, payload:object).
+likely_root_cause (string), root_cause_service (checkout|payment|catalog|unknown: where the fault originates, not where symptoms surface), confidence (0..1), hypotheses (array of up to 3 objects with cause, confidence, supporting_citations, contradicting_citations), and recommended_action (object with kind: rollback|config_change|code_fix|github_issue|none, description, risk: low|medium|high, requires_approval:true, payload:object).
 Every factual claim must be supported by citation strings copied from the evidence. If evidence is weak, lower confidence. Never claim an action was executed."""
     response = await client.chat.completions.create(
         model=model_name(),
@@ -115,6 +120,7 @@ Every factual claim must be supported by citation strings copied from the eviden
             "total_tokens": response.usage.total_tokens,
         })
     output = json.loads(response.choices[0].message.content or "{}")
+    output.setdefault("root_cause_service", "unknown")
     output.setdefault("confidence", 0.3)
     output.setdefault("hypotheses", [])
     output.setdefault("recommended_action", {"kind":"none","description":"Gather more evidence","risk":"low","requires_approval":True,"payload":{}})

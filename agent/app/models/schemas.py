@@ -10,6 +10,8 @@ class IncidentRequest(BaseModel):
     alert: str
     service: str = "checkout"
     severity: Literal["sev1", "sev2", "sev3"] = "sev2"
+    # When the alert began; tools ignore older telemetry. Defaults to the last DEFAULT_WINDOW_S.
+    window_start: datetime | None = None
 
 
 class Evidence(BaseModel):

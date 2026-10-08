@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -12,6 +12,7 @@ from .db import audit, audit_trail, create_incident, get_incident, init_db, mark
 from .graph.workflow import run_workflow
 from .models.schemas import IncidentRequest
 from .rag.hybrid import ingest_paths
+from .tools.base import DEFAULT_WINDOW_S
 from .tools.changes import create_github_issue
 
 app = FastAPI(title="OpsPilot Agent API", version="0.1.0")
@@ -33,11 +34,15 @@ def health():
 async def investigate(req: IncidentRequest):
     incident_id = f"inc-{uuid.uuid4().hex[:10]}"
     started = datetime.now(timezone.utc)
-    payload = req.model_dump()
+    window_start = req.window_start or started - timedelta(seconds=DEFAULT_WINDOW_S)
+    payload = req.model_dump(mode="json")
     create_incident(incident_id, payload)
     audit(incident_id, "incident", "user", "investigation_started", input_data=payload)
     try:
-        state = await run_workflow({"incident_id": incident_id, **payload, "evidence": []}, thread_id=incident_id)
+        state = await run_workflow(
+            {"incident_id": incident_id, **payload, "window_start": window_start.timestamp(), "evidence": []},
+            thread_id=incident_id,
+        )
     except Exception as exc:
         audit(incident_id, "incident", "agent", "investigation_failed", ok=False, error=str(exc))
         raise HTTPException(status_code=500, detail=f"investigation failed: {exc}") from exc
@@ -48,6 +53,7 @@ async def investigate(req: IncidentRequest):
         "status": "awaiting_approval",
         "title": req.title,
         "likely_root_cause": state.get("likely_root_cause", "Unknown"),
+        "root_cause_service": state.get("root_cause_service", "unknown"),
         "confidence": state.get("confidence", 0.0),
         "hypotheses": state.get("hypotheses", []),
         "recommended_action": state.get("recommended_action", {}),

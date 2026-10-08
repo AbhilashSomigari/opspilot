@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from typing import Any
 
 import psycopg

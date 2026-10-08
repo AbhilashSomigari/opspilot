@@ -4,7 +4,6 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from ..config import settings
 from ..llm import client as llm_client, llm_available, model_name, sampling_kwargs
 from ..db import audit
 from ..rag.hybrid import hybrid_search
@@ -23,14 +22,15 @@ TOOL_SCHEMAS = [
 ]
 
 
-async def _dispatch(incident_id: str, name: str, args: dict[str, Any]) -> dict:
+async def _dispatch(incident_id: str, name: str, args: dict[str, Any], since: float) -> dict:
+    # The evidence window comes from the incident, never from model-chosen arguments.
     if name == "get_metrics":
-        data = await audited_tool(incident_id, name, args, service_metrics)
+        data = await audited_tool(incident_id, name, {"service": args["service"], "since": since}, service_metrics)
     elif name == "search_logs":
-        payload = {"service": args["service"], "contains": args.get("contains", ""), "limit": 80}
+        payload = {"service": args["service"], "contains": args.get("contains", ""), "limit": 80, "since": since}
         data = await audited_tool(incident_id, name, payload, search_logs)
     elif name == "get_traces":
-        data = await audited_tool(incident_id, name, {"service": args["service"], "limit": 20}, recent_traces)
+        data = await audited_tool(incident_id, name, {"service": args["service"], "limit": 20, "since": since}, recent_traces)
     elif name == "get_changes":
         data = await audited_tool(incident_id, name, {"service": args["service"], "limit": 10}, recent_changes)
     elif name == "search_runbooks":
@@ -51,7 +51,7 @@ async def _dispatch(incident_id: str, name: str, args: dict[str, Any]) -> dict:
     }
 
 
-async def investigate_with_tools(incident_id: str, alert: str, service: str) -> list[dict]:
+async def investigate_with_tools(incident_id: str, alert: str, service: str, since: float) -> list[dict]:
     # Offline/dev mode remains reproducible and exercises the exact same audited tools.
     if not llm_available():
         services = [service] if service != "checkout" else ["checkout", "payment", "catalog"]
@@ -59,8 +59,8 @@ async def investigate_with_tools(incident_id: str, alert: str, service: str) -> 
         for svc in services:
             for name in ("get_metrics", "search_logs", "get_traces", "get_changes"):
                 args = {"service": svc}
-                evidence.append(await _dispatch(incident_id, name, args))
-        evidence.append(await _dispatch(incident_id, "search_runbooks", {"query": alert}))
+                evidence.append(await _dispatch(incident_id, name, args, since))
+        evidence.append(await _dispatch(incident_id, "search_runbooks", {"query": alert}, since))
         return evidence
 
     client = llm_client()
@@ -97,7 +97,7 @@ async def investigate_with_tools(incident_id: str, alert: str, service: str) -> 
             break
         for call in calls:
             args = json.loads(call.function.arguments or "{}")
-            item = await _dispatch(incident_id, call.function.name, args)
+            item = await _dispatch(incident_id, call.function.name, args, since)
             evidence.append(item)
             messages.append({
                 "role": "tool",

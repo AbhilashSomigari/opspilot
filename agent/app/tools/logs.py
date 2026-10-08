@@ -2,27 +2,33 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
+import time
 from pathlib import Path
 
 from ..config import settings
+from .base import window_start
 
 
-def _parse_lines(lines: list[str], contains: str, limit: int) -> list[dict]:
+def _parse_lines(lines: list[str], contains: str, limit: int, since: float) -> list[dict]:
     entries = []
     for line in reversed(lines):
         if contains.lower() not in line.lower():
             continue
         try:
-            entries.append(json.loads(line))
+            entry = json.loads(line)
         except json.JSONDecodeError:
-            entries.append({"raw": line})
+            entry = {"raw": line}
+        if isinstance(entry.get("ts"), (int, float)) and entry["ts"] < since:
+            continue
+        entries.append(entry)
         if len(entries) >= limit:
             break
     return list(reversed(entries))
 
 
-def _kubernetes_logs(service: str, contains: str, limit: int) -> dict:
+def _kubernetes_logs(service: str, contains: str, limit: int, since: float) -> dict:
     from kubernetes import client, config
 
     config.load_incluster_config()
@@ -37,6 +43,7 @@ def _kubernetes_logs(service: str, contains: str, limit: int) -> dict:
             name=pod.metadata.name,
             namespace=namespace,
             tail_lines=500,
+            since_seconds=max(1, math.ceil(time.time() - since)),
             timestamps=False,
         )
         lines.extend(text.splitlines())
@@ -44,13 +51,14 @@ def _kubernetes_logs(service: str, contains: str, limit: int) -> dict:
         "service": service,
         "backend": "kubernetes",
         "pods": pod_names,
-        "entries": _parse_lines(lines, contains, limit),
+        "entries": _parse_lines(lines, contains, limit, since),
     }
 
 
-async def search_logs(service: str, contains: str = "", limit: int = 80) -> dict:
+async def search_logs(service: str, contains: str = "", limit: int = 80, since: float | None = None) -> dict:
+    since = window_start(since)
     if os.getenv("KUBERNETES_SERVICE_HOST"):
-        return await asyncio.to_thread(_kubernetes_logs, service, contains, limit)
+        return await asyncio.to_thread(_kubernetes_logs, service, contains, limit, since)
 
     path = Path(settings.log_dir) / f"{service}.jsonl"
     if not path.exists():
@@ -59,5 +67,5 @@ async def search_logs(service: str, contains: str = "", limit: int = 80) -> dict
     return {
         "service": service,
         "backend": "file",
-        "entries": _parse_lines(lines, contains, limit),
+        "entries": _parse_lines(lines, contains, limit, since),
     }

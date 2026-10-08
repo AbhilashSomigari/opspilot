@@ -1,6 +1,12 @@
 from __future__ import annotations
+
+import math
+import time
+
 import httpx
+
 from ..config import settings
+from .base import window_start
 
 
 async def prometheus_query(query: str) -> dict:
@@ -10,16 +16,17 @@ async def prometheus_query(query: str) -> dict:
         return r.json()["data"]
 
 
-async def service_metrics(service: str) -> dict:
+async def service_metrics(service: str, since: float | None = None) -> dict:
+    window = f"{max(1, math.ceil(time.time() - window_start(since)))}s"
     queries = {
-        "request_rate": f'sum(rate(opspilot_http_requests_total{{service="{service}"}}[5m]))',
+        "request_rate": f'sum(rate(opspilot_http_requests_total{{service="{service}"}}[{window}]))',
         "error_rate": (
-            f'sum(rate(opspilot_http_requests_total{{service="{service}",status=~"5.."}}[5m])) '
-            f'/ clamp_min(sum(rate(opspilot_http_requests_total{{service="{service}"}}[5m])), 0.000001)'
+            f'sum(rate(opspilot_http_requests_total{{service="{service}",status=~"5.."}}[{window}])) '
+            f'/ clamp_min(sum(rate(opspilot_http_requests_total{{service="{service}"}}[{window}])), 0.000001)'
         ),
         "p95_latency": (
             f'histogram_quantile(0.95, sum by (le) '
-            f'(rate(opspilot_http_request_duration_seconds_bucket{{service="{service}"}}[5m])))'
+            f'(rate(opspilot_http_request_duration_seconds_bucket{{service="{service}"}}[{window}])))'
         ),
     }
     out = {}

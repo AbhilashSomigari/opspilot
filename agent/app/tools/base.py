@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import time
 from typing import Any, Awaitable, Callable
 
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from ..db import audit
+
+DEFAULT_WINDOW_S = 300
+
+
+def window_start(since: float | None) -> float:
+    """Epoch seconds before which tools ignore telemetry."""
+    return since if since is not None else time.time() - DEFAULT_WINDOW_S
 
 
 async def audited_tool(
