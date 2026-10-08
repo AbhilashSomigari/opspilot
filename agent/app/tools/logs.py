@@ -28,6 +28,16 @@ def _parse_lines(lines: list[str], contains: str, limit: int, since: float) -> l
     return list(reversed(entries))
 
 
+def _select_entries(lines: list[str], contains: str, limit: int, since: float) -> dict:
+    entries = _parse_lines(lines, contains, limit, since)
+    if entries or not contains:
+        return {"entries": entries}
+    # A guessed filter must not silently hide the signal: searching every service for the
+    # symptom ("502") once hid payment's 400 rejections, which were the clue to the real origin.
+    errors = [e for e in _parse_lines(lines, "", limit, since) if e.get("level") == "ERROR"]
+    return {"entries": errors, "note": f"no entries contain {contains!r}; showing recent ERROR entries instead"}
+
+
 def _kubernetes_logs(service: str, contains: str, limit: int, since: float) -> dict:
     from kubernetes import client, config
 
@@ -51,7 +61,7 @@ def _kubernetes_logs(service: str, contains: str, limit: int, since: float) -> d
         "service": service,
         "backend": "kubernetes",
         "pods": pod_names,
-        "entries": _parse_lines(lines, contains, limit, since),
+        **_select_entries(lines, contains, limit, since),
     }
 
 
@@ -67,5 +77,5 @@ async def search_logs(service: str, contains: str = "", limit: int = 80, since: 
     return {
         "service": service,
         "backend": "file",
-        "entries": _parse_lines(lines, contains, limit, since),
+        **_select_entries(lines, contains, limit, since),
     }

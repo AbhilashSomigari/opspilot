@@ -22,6 +22,22 @@ TOOL_SCHEMAS = [
 ]
 
 
+# Request path of the system under investigation. An alert names where symptoms surface, which
+# is often not where the fault originates: checkout errors can start in catalog or payment.
+SERVICE_DEPENDENCIES = {"checkout": ["catalog", "payment"], "catalog": [], "payment": []}
+# Evidence required from every service on the failing path before the agent may conclude.
+# Without this, the model stopped after one checkout-only round and blamed the wrong service.
+REQUIRED_PER_SERVICE = ("get_metrics", "search_logs", "get_changes")
+
+
+def failing_path(service: str) -> list[str]:
+    return [service, *SERVICE_DEPENDENCIES.get(service, [])]
+
+
+def unexamined(path: list[str], examined: set[tuple[str, str]]) -> list[str]:
+    return [f"{tool}({svc})" for svc in path for tool in REQUIRED_PER_SERVICE if (tool, svc) not in examined]
+
+
 async def _dispatch(incident_id: str, name: str, args: dict[str, Any], since: float) -> dict:
     # The evidence window comes from the incident, never from model-chosen arguments.
     if name == "get_metrics":
@@ -54,9 +70,8 @@ async def _dispatch(incident_id: str, name: str, args: dict[str, Any], since: fl
 async def investigate_with_tools(incident_id: str, alert: str, service: str, since: float) -> list[dict]:
     # Offline/dev mode remains reproducible and exercises the exact same audited tools.
     if not llm_available():
-        services = [service] if service != "checkout" else ["checkout", "payment", "catalog"]
         evidence = []
-        for svc in services:
+        for svc in failing_path(service):
             for name in ("get_metrics", "search_logs", "get_traces", "get_changes"):
                 args = {"service": svc}
                 evidence.append(await _dispatch(incident_id, name, args, since))
@@ -70,12 +85,17 @@ async def investigate_with_tools(incident_id: str, alert: str, service: str, sin
             "content": (
                 "You are OpsPilot, a production incident investigator. Gather enough evidence to explain the alert. "
                 "Prefer metrics to establish blast radius, logs/traces to localize failure, changes for temporal correlation, "
-                "and runbooks/previous incidents for known patterns. Do not recommend an action yet."
+                "and runbooks/previous incidents for known patterns. Do not recommend an action yet.\n"
+                f"Service dependencies: {json.dumps(SERVICE_DEPENDENCIES)}. The alerting service is where symptoms "
+                "surface; the fault may originate in a dependency. Examine every service on the failing path and "
+                "test each hypothesis against evidence from the service it blames before stopping."
             ),
         },
         {"role": "user", "content": f"Alert: {alert}\nPrimary service: {service}"},
     ]
     evidence: list[dict] = []
+    examined: set[tuple[str, str]] = set()
+    nudged = False
     for _ in range(8):
         response = await client.chat.completions.create(
             model=model_name(),
@@ -94,9 +114,20 @@ async def investigate_with_tools(incident_id: str, alert: str, service: str, sin
         messages.append(msg.model_dump(exclude_none=True))
         calls = msg.tool_calls or []
         if not calls:
+            missing = unexamined(failing_path(service), examined)
+            if missing and not nudged:
+                nudged = True
+                audit(incident_id, "decision", "agent", "coverage_nudge", output_data={"missing": missing})
+                messages.append({
+                    "role": "user",
+                    "content": f"Before concluding, also examine: {', '.join(missing)}. "
+                               "Symptoms surface at the alerting service; the origin may be a dependency.",
+                })
+                continue
             break
         for call in calls:
             args = json.loads(call.function.arguments or "{}")
+            examined.add((call.function.name, args.get("service", "")))
             item = await _dispatch(incident_id, call.function.name, args, since)
             evidence.append(item)
             messages.append({
