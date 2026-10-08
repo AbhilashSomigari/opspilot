@@ -8,16 +8,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 15% in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -42,16 +32,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 18% in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -76,16 +56,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 21% in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -110,16 +80,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 24% in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -144,16 +104,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 27% in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -178,11 +128,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 3.3s in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -207,11 +152,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.1s in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -236,11 +176,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.3s in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -266,12 +201,6 @@
     "category": "mixed",
     "alert": "Checkout API is showing elevated 5xx responses and p95 latency above 2 seconds.",
     "expected_service": "catalog",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "error",
-      "failure"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -296,16 +225,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 21% in the last five minutes.",
     "expected_service": "catalog",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -330,16 +249,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 24% in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -364,16 +273,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 27% in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -398,16 +297,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 30% in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -432,16 +321,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 12% in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -466,16 +345,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 15% in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -500,11 +369,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.5s in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -529,11 +393,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.7s in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -558,11 +417,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.9s in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -588,12 +442,6 @@
     "category": "mixed",
     "alert": "Checkout API is showing elevated 5xx responses and p95 latency above 2 seconds.",
     "expected_service": "payment",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "error",
-      "failure"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -618,16 +466,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 30% in the last five minutes.",
     "expected_service": "payment",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -652,13 +490,6 @@
     "category": "data_contract",
     "alert": "Checkout API returns 502 for a subset of otherwise valid orders.",
     "expected_service": "catalog",
-    "expected_any": [
-      "price",
-      "pricing",
-      "invalid",
-      "data",
-      "contract"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -683,16 +514,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 15% in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -717,16 +538,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 18% in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -751,16 +562,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 21% in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -785,16 +586,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 24% in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -819,16 +610,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 27% in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -853,16 +634,6 @@
     "category": "availability",
     "alert": "Checkout API error rate increased to 30% in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "error",
-      "failure",
-      "5xx",
-      "500",
-      "502",
-      "503",
-      "504",
-      "429"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -887,11 +658,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.1s in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -916,11 +682,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.3s in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [
@@ -945,11 +706,6 @@
     "category": "latency",
     "alert": "Checkout API p95 latency increased to 2.5s in the last five minutes.",
     "expected_service": "checkout",
-    "expected_any": [
-      "latency",
-      "timeout",
-      "slow"
-    ],
     "traffic_requests": 16,
     "concurrency": 8,
     "expected_tools": [

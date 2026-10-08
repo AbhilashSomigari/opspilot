@@ -33,8 +33,8 @@ def health():
 async def checkout(order: Order):
     cfg = await faults.before_request()
     if faults.should_fail(cfg):
-        logger.error("injected_failure", extra={"service":"checkout", "fault": faults.get(), "status": cfg.force_status or 500})
-        raise HTTPException(status_code=cfg.force_status or 500, detail="checkout injected failure")
+        logger.error("checkout_request_failed", extra={"service":"checkout", "status": cfg.force_status or 500})
+        raise HTTPException(status_code=cfg.force_status or 500, detail="checkout internal error")
 
     timeout = httpx.Timeout(2.0)
     async with httpx.AsyncClient(timeout=timeout) as client:

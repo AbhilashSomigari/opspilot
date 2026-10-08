@@ -26,10 +26,10 @@ def health():
 async def charge(req: Charge):
     cfg = await faults.before_request()
     if faults.should_fail(cfg):
-        logger.error("injected_failure", extra={"service":"payment", "fault": faults.get(), "status": cfg.force_status or 502})
-        raise HTTPException(status_code=cfg.force_status or 502, detail="payment processor injected failure")
+        logger.error("payment_processor_error", extra={"service":"payment", "status": cfg.force_status or 502})
+        raise HTTPException(status_code=cfg.force_status or 502, detail="payment processor error")
     if req.amount <= 0:
-        logger.error("invalid_charge_amount", extra={"service":"payment", "status": 400})
+        logger.error("invalid_charge_amount", extra={"service":"payment", "status": 400, "detail": f"amount={req.amount}"})
         raise HTTPException(status_code=400, detail="invalid amount")
     return {"status": "charged", "transaction_id": "txn-demo", "amount": req.amount}
 

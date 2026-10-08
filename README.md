@@ -202,7 +202,14 @@ GITHUB_TOKEN=github_pat_...
 GITHUB_REPOSITORY=owner/repository
 ```
 
-The investigation tool then reads recent commits from the GitHub API. An approved `github_issue` action creates a real issue; without credentials it returns a clearly marked simulation.
+The investigation tool then reads recent commits from the GitHub API. Deployment and config events can also be pushed by a CI/CD pipeline:
+
+```bash
+curl -X POST http://localhost:8080/changes -H 'content-type: application/json' \
+  -d '{"service":"payment","version":"payment-1.4.0","sha":"81bd5a2","change":"config rollout","deployed_at":"2026-10-08T03:00:00Z"}'
+```
+
+An approved `github_issue` action creates a real issue; without credentials it returns a clearly marked simulation.
 
 ## 6. Hybrid RAG
 
@@ -269,7 +276,7 @@ The dashboard updates from those files through `GET /evaluation/latest`.
 
 | Metric | Definition in this repo |
 |---|---|
-| Root-cause Top-1 | Structured `root_cause_service` equals the hidden failing service, and the root-cause text names the failure category |
+| Root-cause Top-1 | Structured `root_cause_service` equals the hidden failing service and `failure_category` (availability / latency / data_contract) matches the injected fault; a mixed fault accepts either symptom |
 | Incident-resolution success | Correct Top-1 + actionable remediation proposal + no pre-approval action |
 | Tool-call correctness | Fraction of expected investigation tool families used |
 | Unsupported-claim rate | Fraction of root-cause hypotheses lacking supporting evidence citations |
@@ -302,6 +309,8 @@ The suite includes:
 Every incident resets the environment, injects exactly the declared fault, generates traffic spread across several Prometheus scrapes, waits for telemetry collection, runs OpsPilot, gathers its audit trail, scores the result, and resets the fault again.
 
 Each investigation passes `window_start` (the moment the fault was injected), and the metrics, logs and traces tools ignore telemetry older than that. Without it, back-to-back cases leak into each other: the previous case's failing service still shows errors in a 5-minute window. Real alerts can pass their own start time; when omitted, the window defaults to the last 5 minutes.
+
+Each case also records a change event for the faulted service, plus a decoy change on a healthy service near the same moment, through `POST /changes`. Remediations then have evidence to rest on, while the change log alone never reveals which service broke. Services log what a real outage would (`product_lookup_failed`, `payment_processor_error`), never the injected fault. Fault-control, scrape and health endpoints are excluded from metrics, logs and traces.
 
 ## 10. MCP tools
 

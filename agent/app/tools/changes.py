@@ -1,15 +1,20 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
 import httpx
+
 from ..config import settings
+from ..db import recent_change_events
 
 
 async def recent_changes(service: str, limit: int = 10) -> dict:
     fixture = Path(settings.repo_root) / "fixtures" / "deployments.json"
     deployments = []
     if fixture.exists():
-        deployments = [x for x in json.loads(fixture.read_text()) if x.get("service") == service][-limit:]
+        deployments = [x for x in json.loads(fixture.read_text()) if x.get("service") == service]
+    deployments = sorted(deployments + recent_change_events(service, limit), key=lambda d: d["deployed_at"])[-limit:]
 
     commits = []
     if settings.github_repository and settings.github_token:

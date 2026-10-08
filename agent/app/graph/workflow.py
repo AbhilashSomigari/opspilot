@@ -24,6 +24,7 @@ class IncidentState(TypedDict, total=False):
     hypotheses: list[dict]
     likely_root_cause: str
     root_cause_service: str
+    failure_category: str
     confidence: float
     recommended_action: dict
     timeline: list[str]
@@ -51,8 +52,15 @@ def _metric_scalar(data: Any, key: str) -> float | None:
         return None
 
 
+def _ts(value: Any) -> float:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
 def _fallback_reason(state: IncidentState) -> dict:
-    scores: list[tuple[float, str, str, list[str]]] = []
+    scores: list[tuple[float, str, str, str, list[str]]] = []
     for ev in state.get("evidence", []):
         if ev["source"] != "get_metrics" or not isinstance(ev.get("data"), dict):
             continue
@@ -60,23 +68,30 @@ def _fallback_reason(state: IncidentState) -> dict:
         err = _metric_scalar(ev["data"], "error_rate")
         p95 = _metric_scalar(ev["data"], "p95_latency")
         if err is not None:
-            scores.append((err * 2, svc, f"Elevated 5xx failures in {svc}", [ev["citation"]]))
+            scores.append((err * 2, svc, "availability", f"Elevated 5xx failures in {svc}", [ev["citation"]]))
         if p95 is not None:
-            scores.append((min(p95 / 3, 1.0), svc, f"Latency regression in {svc}", [ev["citation"]]))
+            scores.append((min(p95 / 3, 1.0), svc, "latency", f"Latency regression in {svc}", [ev["citation"]]))
     scores.sort(reverse=True)
     if scores and scores[0][0] > 0.05:
         confidence = min(0.92, max(0.45, scores[0][0]))
-        _, root_service, cause, cites = scores[0]
+        _, root_service, category, cause, cites = scores[0]
     else:
-        root_service = "unknown"
+        root_service, category = "unknown", "unknown"
         cause = f"Insufficient evidence; suspected failure in {state['service']} path"
         confidence = 0.35
         cites = [e["citation"] for e in state.get("evidence", [])[:2]]
 
-    action_kind = "rollback" if "deploy" in state["alert"].lower() else "github_issue"
+    changed = any(
+        dep.get("service") == root_service and _ts(dep.get("deployed_at")) >= state["window_start"] - 600
+        for ev in state.get("evidence", [])
+        if ev["source"] == "get_changes" and isinstance(ev.get("data"), dict)
+        for dep in ev["data"].get("deployments", [])
+    )
+    action_kind = "rollback" if changed else "github_issue"
     return {
         "likely_root_cause": cause,
         "root_cause_service": root_service,
+        "failure_category": category,
         "confidence": confidence,
         "hypotheses": [
             {"cause": cause, "confidence": confidence, "supporting_citations": cites, "contradicting_citations": []}
@@ -105,7 +120,7 @@ Service: {state['service']}
 Evidence JSON: {_evidence_digest(state.get('evidence', []))}
 
 Return strict JSON with keys:
-likely_root_cause (string), root_cause_service (checkout|payment|catalog|unknown: where the fault originates, not where symptoms surface), confidence (0..1), hypotheses (array of up to 3 objects with cause, confidence, supporting_citations, contradicting_citations), and recommended_action (object with kind: rollback|config_change|code_fix|github_issue|none, description, risk: low|medium|high, requires_approval:true, payload:object).
+likely_root_cause (string), root_cause_service (checkout|payment|catalog|unknown: where the fault originates, not where symptoms surface), failure_category (availability: the origin returns errors | latency: the origin is slow or times out | data_contract: the origin returns successful but invalid data | unknown), confidence (0..1), hypotheses (array of up to 3 objects with cause, confidence, supporting_citations, contradicting_citations), and recommended_action (object with kind: rollback|config_change|code_fix|github_issue|none, description, risk: low|medium|high, requires_approval:true, payload:object).
 Every factual claim must be supported by citation strings copied from the evidence. If evidence is weak, lower confidence. Never claim an action was executed."""
     response = await client.chat.completions.create(
         model=model_name(),
@@ -121,6 +136,7 @@ Every factual claim must be supported by citation strings copied from the eviden
         })
     output = json.loads(response.choices[0].message.content or "{}")
     output.setdefault("root_cause_service", "unknown")
+    output.setdefault("failure_category", "unknown")
     output.setdefault("confidence", 0.3)
     output.setdefault("hypotheses", [])
     output.setdefault("recommended_action", {"kind":"none","description":"Gather more evidence","risk":"low","requires_approval":True,"payload":{}})
