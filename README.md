@@ -124,7 +124,21 @@ Edit `.env`:
 LLM_PROVIDER=openai
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-5-mini
+# Bearer tokens for API clients (alerting, CI/CD, the eval runner): identity -> token.
+API_TOKENS='{"local-dev": "<long random token>"}'
+# The client token the eval runner and the curl examples below send.
+OPSPILOT_API_TOKEN=<the same token>
 ```
+
+Generate tokens with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. Every agent endpoint except `/health` and `/evaluation/latest` requires a bearer token, and an endpoint whose role has no tokens configured refuses all requests (HTTP 503):
+
+| Endpoint | Accepted tokens |
+|---|---|
+| `POST /incidents`, `POST /changes` | client (`API_TOKENS`) |
+| `GET /incidents/{id}`, `GET /incidents/{id}/audit` | client or approver |
+| `POST /incidents/{id}/approval` | approver (`APPROVER_TOKENS`, see section 4) |
+
+For the curl examples, export the client token in your shell: `export OPSPILOT_API_TOKEN=<token>`.
 
 Then:
 
@@ -171,6 +185,7 @@ Ask OpsPilot to investigate **without telling it which service failed**:
 ```bash
 curl -s -X POST http://localhost:8080/incidents \
   -H 'content-type: application/json' \
+  -H "Authorization: Bearer $OPSPILOT_API_TOKEN" \
   -d '{
     "title":"Checkout error-rate alert",
     "alert":"Checkout API error rate increased to 18% in the last five minutes.",
@@ -184,7 +199,8 @@ The response contains the ranked root-cause hypothesis, confidence, evidence cit
 ## 3. Inspect the audit trail
 
 ```bash
-curl http://localhost:8080/incidents/<INCIDENT_ID>/audit | python -m json.tool
+curl -H "Authorization: Bearer $OPSPILOT_API_TOKEN" \
+  http://localhost:8080/incidents/<INCIDENT_ID>/audit | python -m json.tool
 ```
 
 Audit event types include:
@@ -207,7 +223,7 @@ Approvers authenticate with a bearer token, and the approver recorded in the aud
 APPROVER_TOKENS='{"abhi@example.com": "<long random token>"}'
 ```
 
-Generate a token with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. With no approvers configured, the approval endpoint refuses every request (HTTP 503).
+Approver and client tokens are separate roles: a client token can't approve, and an approver token can't start investigations. With no approvers configured, the approval endpoint refuses every request (HTTP 503).
 
 Reject:
 
@@ -244,6 +260,7 @@ The investigation tool then reads recent commits from the GitHub API. Deployment
 
 ```bash
 curl -X POST http://localhost:8080/changes -H 'content-type: application/json' \
+  -H "Authorization: Bearer $OPSPILOT_API_TOKEN" \
   -d '{"service":"payment","version":"payment-1.4.0","sha":"81bd5a2","change":"config rollout","deployed_at":"2026-10-08T03:00:00Z"}'
 ```
 
@@ -295,7 +312,7 @@ First run the no-tools baseline:
 python eval/baseline.py
 ```
 
-Then run all 30 injected incidents:
+Then run all 30 injected incidents. The runner authenticates with `OPSPILOT_API_TOKEN` from `.env`:
 
 ```bash
 python eval/runner.py
@@ -395,6 +412,7 @@ kubectl create namespace opspilot --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n opspilot create secret generic opspilot-secrets \
   --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
   --from-literal=DATABASE_URL="$DATABASE_URL" \
+  --from-literal=API_TOKENS="$API_TOKENS" \
   --from-literal=APPROVER_TOKENS="$APPROVER_TOKENS"
 ```
 
@@ -423,7 +441,8 @@ python -m py_compile $(find agent services eval -name '*.py')
 - Tool results are treated as evidence, not instructions.
 - The model cannot set approval state.
 - Approval is enforced in a separate API route against persisted incident state.
-- Approvers authenticate with bearer tokens; the recorded approver comes from the token, never the request body.
+- Every endpoint except `/health` and `/evaluation/latest` requires a bearer token, and endpoints fail closed when their role has no tokens.
+- Client and approver tokens are separate roles; the recorded identity comes from the token, never the request body.
 - Each decision is an atomic compare-and-set on the incident, so an approved action executes at most once.
 - No production mutation tool is given to the investigation graph.
 - Failed tools retry and then return explicit error evidence.

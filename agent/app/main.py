@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 
-from .auth import authenticated_approver
+from .auth import authenticated_approver, authenticated_client, authenticated_reader
 from .config import settings
 from .db import (
     audit, audit_trail, claim_decision, create_incident, get_incident, init_db, mark_approved, record_change,
@@ -34,20 +34,20 @@ def health():
     return {"ok": True, "service": "agent"}
 
 
-@app.post("/changes", status_code=201)
+@app.post("/changes", status_code=201, dependencies=[Depends(authenticated_client)])
 def ingest_change(event: ChangeEvent):
     # Deployment/config events as a CI/CD pipeline would report them.
     return record_change(event.model_dump())
 
 
 @app.post("/incidents")
-async def investigate(req: IncidentRequest):
+async def investigate(req: IncidentRequest, client: str = Depends(authenticated_client)):
     incident_id = f"inc-{uuid.uuid4().hex[:10]}"
     started = datetime.now(timezone.utc)
     window_start = req.window_start or started - timedelta(seconds=DEFAULT_WINDOW_S)
     payload = req.model_dump(mode="json")
     create_incident(incident_id, payload)
-    audit(incident_id, "incident", "user", "investigation_started", input_data=payload)
+    audit(incident_id, "incident", client, "investigation_started", input_data=payload)
     try:
         state = await run_workflow(
             {"incident_id": incident_id, **payload, "window_start": window_start.timestamp(), "evidence": []},
@@ -80,7 +80,7 @@ async def investigate(req: IncidentRequest):
     return result
 
 
-@app.get("/incidents/{incident_id}")
+@app.get("/incidents/{incident_id}", dependencies=[Depends(authenticated_reader)])
 def incident(incident_id: str):
     row = get_incident(incident_id)
     if not row:
@@ -88,7 +88,7 @@ def incident(incident_id: str):
     return row
 
 
-@app.get("/incidents/{incident_id}/audit")
+@app.get("/incidents/{incident_id}/audit", dependencies=[Depends(authenticated_reader)])
 def incident_audit(incident_id: str):
     if not get_incident(incident_id):
         raise HTTPException(404, "incident not found")
