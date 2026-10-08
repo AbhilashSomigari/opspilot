@@ -5,6 +5,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+SERVICES = ("checkout", "payment", "catalog")
+FAILURE_CATEGORIES = ("availability", "latency", "data_contract")
+
+
 class IncidentRequest(BaseModel):
     title: str
     alert: str

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import operator
+import re
 from datetime import datetime, timezone
 from typing import Annotated, Any, TypedDict
 
@@ -10,6 +11,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from ..config import settings
 from ..llm import client as llm_client, llm_available, model_name, sampling_kwargs
 from ..db import audit
+from ..models.schemas import FAILURE_CATEGORIES, SERVICES
 from .tool_agent import investigate_with_tools
 
 
@@ -106,6 +108,24 @@ def _fallback_reason(state: IncidentState) -> dict:
     }
 
 
+SERVICE_ANSWERS = (*SERVICES, "unknown")
+CATEGORY_ANSWERS = (*FAILURE_CATEGORIES, "unknown")
+
+
+def _quoted(options: tuple[str, ...]) -> str:
+    return ", ".join(f'"{option}"' for option in options)
+
+
+def _enum_answer(value: Any, allowed: tuple[str, ...]) -> str:
+    """The allowed value the model meant, or "unknown".
+
+    The model sometimes copies a field description back ("availability: the origin returns
+    errors (...)"), which failed exact-match scoring for correct diagnoses, so keep its leading word.
+    """
+    word = re.match(r"[a-z_]+", str(value).strip().lower())
+    return word.group(0) if word and word.group(0) in allowed else "unknown"
+
+
 async def reason(state: IncidentState) -> dict:
     incident_id = state["incident_id"]
     if not llm_available():
@@ -120,7 +140,10 @@ Service: {state['service']}
 Evidence JSON: {_evidence_digest(state.get('evidence', []))}
 
 Return strict JSON with keys:
-likely_root_cause (string), root_cause_service (checkout|payment|catalog|unknown: where the fault originates, not where symptoms surface), failure_category (availability: the origin returns errors | latency: the origin is slow or times out | data_contract: the origin returns successful but invalid data | unknown), confidence (0..1), hypotheses (array of up to 3 objects with cause, confidence, supporting_citations, contradicting_citations), and recommended_action (object with kind: rollback|config_change|code_fix|github_issue|none, description, risk: low|medium|high, requires_approval:true, payload:object).
+likely_root_cause (string),
+root_cause_service: exactly one of {_quoted(SERVICE_ANSWERS)}, naming where the fault originates, not where symptoms surface,
+failure_category: exactly one of {_quoted(CATEGORY_ANSWERS)}, as the bare word. availability means the origin returns errors; latency means it is slow or times out; data_contract means it returns successful but invalid data.
+confidence (0..1), hypotheses (array of up to 3 objects with cause, confidence, supporting_citations, contradicting_citations), and recommended_action (object with kind: rollback|config_change|code_fix|github_issue|none, description, risk: low|medium|high, requires_approval:true, payload:object).
 Every factual claim must be supported by citation strings copied from the evidence. If evidence is weak, lower confidence. Never claim an action was executed."""
     response = await client.chat.completions.create(
         model=model_name(),
@@ -135,8 +158,13 @@ Every factual claim must be supported by citation strings copied from the eviden
             "total_tokens": response.usage.total_tokens,
         })
     output = json.loads(response.choices[0].message.content or "{}")
-    output.setdefault("root_cause_service", "unknown")
-    output.setdefault("failure_category", "unknown")
+    raw = {key: output.get(key) for key in ("root_cause_service", "failure_category")}
+    output["root_cause_service"] = _enum_answer(raw["root_cause_service"], SERVICE_ANSWERS)
+    output["failure_category"] = _enum_answer(raw["failure_category"], CATEGORY_ANSWERS)
+    repaired = {key: value for key, value in raw.items() if value != output[key]}
+    if repaired:
+        audit(incident_id, "decision", "agent", "output_repaired", input_data=repaired,
+              output_data={key: output[key] for key in repaired})
     output.setdefault("confidence", 0.3)
     output.setdefault("hypotheses", [])
     output.setdefault("recommended_action", {"kind":"none","description":"Gather more evidence","risk":"low","requires_approval":True,"payload":{}})

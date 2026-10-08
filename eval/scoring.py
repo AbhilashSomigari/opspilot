@@ -1,6 +1,8 @@
 """Root-cause scoring shared by the agent eval and the no-tools baseline."""
 
-FAILURE_CATEGORIES = ("availability", "latency", "data_contract")
+from agent.app.models.schemas import FAILURE_CATEGORIES
+
+__all__ = ["FAILURE_CATEGORIES", "root_cause_correct"]
 
 # A mixed fault (latency plus errors) is correctly described as either.
 _ACCEPTED = {"mixed": {"availability", "latency"}}
