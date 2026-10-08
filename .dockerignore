@@ -11,6 +11,7 @@
 eval/results
 dashboard
 infra/terraform
+docs
 *.md
 !runbooks/**/*.md
 !incidents/**/*.md
