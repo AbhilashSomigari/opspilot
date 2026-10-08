@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from agent.app.rag.hybrid import hybrid_search
 from agent.app.tools.changes import recent_changes
@@ -6,7 +6,7 @@ from agent.app.tools.logs import search_logs
 from agent.app.tools.metrics import service_metrics
 from agent.app.tools.traces import recent_traces
 
-mcp = FastMCP("OpsPilot Observability")
+mcp = MCPServer("OpsPilot Observability")
 
 @mcp.tool()
 async def metrics(service: str) -> dict:
