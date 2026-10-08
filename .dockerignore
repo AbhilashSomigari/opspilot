@@ -1,0 +1,16 @@
+# Secrets and local state must never be baked into images; compose injects .env at runtime.
+.env
+.git
+.github
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.DS_Store
+eval/results
+dashboard
+infra/terraform
+*.md
+!runbooks/**/*.md
+!incidents/**/*.md
