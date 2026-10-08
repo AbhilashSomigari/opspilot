@@ -10,6 +10,10 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from prometheus_client import Counter, Histogram, make_asgi_app
 
+# Control-plane and scrape traffic isn't user traffic: counting it dilutes error rates, and
+# tracing /__faults would reveal an injected fault to the agent.
+UNOBSERVED_PATHS = ("/__faults", "/metrics", "/health")
+
 REQUESTS = Counter(
     "opspilot_http_requests_total",
     "HTTP requests",
@@ -30,7 +34,7 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
             "logger": record.name,
         }
-        for key in ("service", "path", "status", "trace_id", "fault"):
+        for key in ("service", "path", "status", "trace_id", "detail"):
             value = getattr(record, key, None)
             if value is not None:
                 payload[key] = value
@@ -71,13 +75,15 @@ def instrument_app(app: FastAPI, service: str) -> logging.Logger:
         endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318").rstrip("/") + "/v1/traces"
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
         trace.set_tracer_provider(provider)
-        FastAPIInstrumentor.instrument_app(app)
+        FastAPIInstrumentor.instrument_app(app, excluded_urls=",".join(UNOBSERVED_PATHS))
         HTTPXClientInstrumentor().instrument()
     except Exception as exc:
         logger.warning("otel_init_failed:%s", exc)
 
     @app.middleware("http")
     async def metrics_and_logs(request: Request, call_next):
+        if request.url.path.startswith(UNOBSERVED_PATHS):
+            return await call_next(request)
         started = time.perf_counter()
         status = 500
         try:

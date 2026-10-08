@@ -27,13 +27,14 @@ def health():
 async def product(sku: str):
     cfg = await faults.before_request()
     if faults.should_fail(cfg):
-        logger.error("injected_failure", extra={"service":"catalog", "fault": faults.get(), "status": cfg.force_status or 503})
-        raise HTTPException(status_code=cfg.force_status or 503, detail="catalog injected failure")
+        # Telemetry must look like a real outage: naming the injected fault would hand the agent the answer.
+        logger.error("product_lookup_failed", extra={"service":"catalog", "status": cfg.force_status or 503})
+        raise HTTPException(status_code=cfg.force_status or 503, detail="catalog unavailable")
     if sku not in PRODUCTS:
         raise HTTPException(status_code=404, detail="unknown sku")
     item = dict(PRODUCTS[sku])
     if cfg.corrupt_response:
-        logger.error("invalid_catalog_price_injected", extra={"service":"catalog", "fault": faults.get()})
+        # A data bug doesn't announce itself; the bad price only surfaces downstream.
         item["price"] = -1
     return {"sku": sku, **item}
 
