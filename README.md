@@ -238,6 +238,12 @@ You can swap the model as long as its vLLM tool-call parser/template is configur
 
 ## 8. Run the evaluation suite
 
+Install the project locally (the baseline reuses the agent's model settings):
+
+```bash
+pip install -e '.[dev]'
+```
+
 First run the no-tools baseline:
 
 ```bash
@@ -263,7 +269,7 @@ The dashboard updates from those files through `GET /evaluation/latest`.
 
 | Metric | Definition in this repo |
 |---|---|
-| Root-cause Top-1 | Top hypothesis identifies the hidden failing service and failure category |
+| Root-cause Top-1 | Structured `root_cause_service` equals the hidden failing service, and the root-cause text names the failure category |
 | Incident-resolution success | Correct Top-1 + actionable remediation proposal + no pre-approval action |
 | Tool-call correctness | Fraction of expected investigation tool families used |
 | Unsupported-claim rate | Fraction of root-cause hypotheses lacking supporting evidence citations |
@@ -293,7 +299,9 @@ The suite includes:
 - mixed latency + availability degradation
 - a catalog data-contract failure that propagates into payment/checkout
 
-Every incident resets the environment, injects exactly the declared fault, generates traffic, waits for telemetry collection, runs OpsPilot, gathers its audit trail, scores the result, and resets the fault again.
+Every incident resets the environment, injects exactly the declared fault, generates traffic spread across several Prometheus scrapes, waits for telemetry collection, runs OpsPilot, gathers its audit trail, scores the result, and resets the fault again.
+
+Each investigation passes `window_start` (the moment the fault was injected), and the metrics, logs and traces tools ignore telemetry older than that. Without it, back-to-back cases leak into each other: the previous case's failing service still shows errors in a 5-minute window. Real alerts can pass their own start time; when omitted, the window defaults to the last 5 minutes.
 
 ## 10. MCP tools
 
