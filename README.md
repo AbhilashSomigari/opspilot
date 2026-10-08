@@ -201,12 +201,21 @@ This makes it possible to answer: *What did the agent observe? What did it ask e
 
 ## 4. Human approval
 
+Approvers authenticate with a bearer token, and the approver recorded in the audit trail is the identity that token maps to. A request body can't claim to be someone else. Configure approvers in `.env` as a JSON object:
+
+```env
+APPROVER_TOKENS='{"abhi@example.com": "<long random token>"}'
+```
+
+Generate a token with `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. With no approvers configured, the approval endpoint refuses every request (HTTP 503).
+
 Reject:
 
 ```bash
 curl -X POST http://localhost:8080/incidents/<INCIDENT_ID>/approval \
   -H 'content-type: application/json' \
-  -d '{"approved":false,"actor":"abhi@example.com"}'
+  -H "Authorization: Bearer $APPROVER_TOKEN" \
+  -d '{"approved":false}'
 ```
 
 Approve:
@@ -214,8 +223,11 @@ Approve:
 ```bash
 curl -X POST http://localhost:8080/incidents/<INCIDENT_ID>/approval \
   -H 'content-type: application/json' \
-  -d '{"approved":true,"actor":"abhi@example.com"}'
+  -H "Authorization: Bearer $APPROVER_TOKEN" \
+  -d '{"approved":true}'
 ```
+
+A decision claims the incident with a single conditional database update, so concurrent approvals, even across agent replicas, execute the action at most once; the others get HTTP 409. If the approved action itself fails, the incident moves to `action_failed` and can be approved again.
 
 The MVP executor can create a GitHub issue when GitHub credentials are configured. Rollback/config/code mutations remain simulated until a policy-scoped deployment executor is explicitly wired. This is intentional: the agent cannot turn a prompt into production mutation authority.
 
@@ -382,7 +394,8 @@ Create the runtime secret before deployment:
 kubectl create namespace opspilot --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n opspilot create secret generic opspilot-secrets \
   --from-literal=OPENAI_API_KEY="$OPENAI_API_KEY" \
-  --from-literal=DATABASE_URL="$DATABASE_URL"
+  --from-literal=DATABASE_URL="$DATABASE_URL" \
+  --from-literal=APPROVER_TOKENS="$APPROVER_TOKENS"
 ```
 
 Then run the **Build, Push, Deploy to EKS** GitHub Actions workflow. It uses OIDC (`AWS_DEPLOY_ROLE_ARN`), builds images, pushes them to ECR, patches the ECR registry into the manifests, deploys, and waits for rollouts.
@@ -410,6 +423,8 @@ python -m py_compile $(find agent services eval -name '*.py')
 - Tool results are treated as evidence, not instructions.
 - The model cannot set approval state.
 - Approval is enforced in a separate API route against persisted incident state.
+- Approvers authenticate with bearer tokens; the recorded approver comes from the token, never the request body.
+- Each decision is an atomic compare-and-set on the incident, so an approved action executes at most once.
 - No production mutation tool is given to the investigation graph.
 - Failed tools retry and then return explicit error evidence.
 - Reports state when evidence is insufficient and include citations.
