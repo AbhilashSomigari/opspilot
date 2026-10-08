@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
 from agent.app.llm import sampling_kwargs_for
-from scoring import root_cause_correct
+from scoring import FAILURE_CATEGORIES, root_cause_correct
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
@@ -23,14 +23,13 @@ MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
 async def predict(client: AsyncOpenAI | None, alert: str) -> tuple[str, str]:
     if client is None:
-        category = "latency timeout slow" if "latency" in alert.lower() else "error failure 5xx"
-        return "checkout", category
+        return "checkout", "latency" if "latency" in alert.lower() else "availability"
     r = await client.chat.completions.create(
         model=MODEL,
         **sampling_kwargs_for(MODEL),
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": "You receive only an alert, with no logs, metrics, traces, changes, or runbooks. Guess the most likely failing service (checkout, payment, catalog) and failure category. Output JSON with service and category."},
+            {"role": "system", "content": f"You receive only an alert, with no logs, metrics, traces, changes, or runbooks. Guess the service where the fault originates (checkout, payment, catalog) and its failure category ({', '.join(FAILURE_CATEGORIES)}). Output JSON with service and category."},
             {"role": "user", "content": alert},
         ],
     )

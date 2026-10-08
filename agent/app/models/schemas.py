@@ -14,6 +14,14 @@ class IncidentRequest(BaseModel):
     window_start: datetime | None = None
 
 
+class ChangeEvent(BaseModel):
+    service: Literal["checkout", "payment", "catalog"]
+    version: str
+    sha: str
+    change: str
+    deployed_at: datetime
+
+
 class Evidence(BaseModel):
     source: str
     summary: str

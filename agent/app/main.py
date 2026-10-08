@@ -8,9 +8,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .config import settings
-from .db import audit, audit_trail, create_incident, get_incident, init_db, mark_approved, save_result
+from .db import (
+    audit, audit_trail, create_incident, get_incident, init_db, mark_approved, record_change, save_result,
+)
 from .graph.workflow import run_workflow
-from .models.schemas import IncidentRequest
+from .models.schemas import ChangeEvent, IncidentRequest
 from .rag.hybrid import ingest_paths
 from .tools.base import DEFAULT_WINDOW_S
 from .tools.changes import create_github_issue
@@ -28,6 +30,12 @@ def startup() -> None:
 @app.get("/health")
 def health():
     return {"ok": True, "service": "agent"}
+
+
+@app.post("/changes", status_code=201)
+def ingest_change(event: ChangeEvent):
+    # Deployment/config events as a CI/CD pipeline would report them.
+    return record_change(event.model_dump())
 
 
 @app.post("/incidents")
@@ -54,6 +62,7 @@ async def investigate(req: IncidentRequest):
         "title": req.title,
         "likely_root_cause": state.get("likely_root_cause", "Unknown"),
         "root_cause_service": state.get("root_cause_service", "unknown"),
+        "failure_category": state.get("failure_category", "unknown"),
         "confidence": state.get("confidence", 0.0),
         "hypotheses": state.get("hypotheses", []),
         "recommended_action": state.get("recommended_action", {}),

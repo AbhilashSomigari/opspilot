@@ -1,10 +1,13 @@
 """Root-cause scoring shared by the agent eval and the no-tools baseline."""
 
+FAILURE_CATEGORIES = ("availability", "latency", "data_contract")
 
-def root_cause_correct(case: dict, service: str, description: str) -> bool:
-    # The failing service must be the structured answer, not merely mentioned in prose:
-    # a substring match scored "payment is failing; catalog looks healthy" as a catalog diagnosis.
-    low = description.lower()
-    return service.strip().lower() == case["expected_service"] and any(
-        term in low for term in case["expected_any"]
-    )
+# A mixed fault (latency plus errors) is correctly described as either.
+_ACCEPTED = {"mixed": {"availability", "latency"}}
+
+
+def root_cause_correct(case: dict, service: str, category: str) -> bool:
+    # Both halves are structured answers: substring matching on prose scored "payment is failing;
+    # catalog looks healthy" as a catalog diagnosis and failed "processing delay" for latency.
+    accepted = _ACCEPTED.get(case["category"], {case["category"]})
+    return service.strip().lower() == case["expected_service"] and category.strip().lower() in accepted

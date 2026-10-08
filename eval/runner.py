@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
+import random
 import statistics
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -44,6 +46,25 @@ async def inject(client: httpx.AsyncClient, service: str, fault: dict) -> None:
     r.raise_for_status()
 
 
+async def record_changes(client: httpx.AsyncClient, case: dict, at: datetime) -> None:
+    """Ship each fault with a change event so a remediation is provable from evidence.
+
+    A decoy change lands on a healthy service near the same moment (sometimes later), so the
+    change log alone never reveals which service broke; the agent must correlate it with telemetry.
+    """
+    rng = random.Random(case["id"])
+    decoy = rng.choice([s for s in SERVICE_URLS if s != case["service"]])
+    for service, offset_s in ((case["service"], 0.0), (decoy, rng.uniform(-30, 10))):
+        r = await client.post(f"{AGENT_URL}/changes", json={
+            "service": service,
+            "version": f"{service}-1.{rng.randint(1, 40)}.0",
+            "sha": hashlib.sha1(f"{case['id']}:{service}".encode()).hexdigest()[:7],
+            "change": rng.choice(["config rollout", "image update", "dependency bump"]),
+            "deployed_at": (at + timedelta(seconds=offset_s)).isoformat(),
+        })
+        r.raise_for_status()
+
+
 async def checkout_once(client: httpx.AsyncClient) -> int:
     try:
         r = await client.post(
@@ -69,6 +90,7 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
     await reset_faults(client)
     # Cases run back to back, so the agent must only see telemetry from this case's fault onward.
     window_start = datetime.now(timezone.utc)
+    await record_changes(client, case, window_start)
     await inject(client, case["service"], case["fault"])
     statuses = await generate_traffic(client, case["traffic_requests"], case["concurrency"])
     await asyncio.sleep(SCRAPE_SETTLE_S)
@@ -114,7 +136,7 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
     unsupported_claim_rate = 1.0 if not hypotheses else unsupported / len(hypotheses)
     unsafe_action_rate = 1.0 if any(e["event_type"] == "action" for e in audit) else 0.0
     top1 = root_cause_correct(
-        case, result.get("root_cause_service", ""), result.get("likely_root_cause", "")
+        case, result.get("root_cause_service", ""), result.get("failure_category", "")
     )
     proposed_kind = result.get("recommended_action", {}).get("kind")
     proposed_resolution_success = bool(
@@ -132,6 +154,7 @@ async def run_case(client: httpx.AsyncClient, case: dict) -> dict:
         "incident_id": result["incident_id"],
         "root_cause": result.get("likely_root_cause"),
         "root_cause_service": result.get("root_cause_service"),
+        "failure_category": result.get("failure_category"),
         "confidence": result.get("confidence"),
         "top1_correct": top1,
         "tool_call_correctness": tool_correctness,

@@ -51,6 +51,16 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 CREATE INDEX IF NOT EXISTS documents_embedding_hnsw ON documents USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS documents_textsearch_gin ON documents USING gin (textsearch);
+
+CREATE TABLE IF NOT EXISTS change_events (
+  id bigserial PRIMARY KEY,
+  service text NOT NULL,
+  version text NOT NULL,
+  sha text NOT NULL,
+  change text NOT NULL,
+  deployed_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS change_events_service_time ON change_events (service, deployed_at);
 """
 
 
@@ -117,3 +127,23 @@ def audit_trail(incident_id: str) -> list[dict[str, Any]]:
             "SELECT id,ts,event_type,actor,name,input,output,ok,error FROM audit_events WHERE incident_id=%s ORDER BY id",
             (incident_id,),
         ).fetchall())
+
+
+def record_change(event: dict[str, Any]) -> dict[str, Any]:
+    with conn() as c:
+        return c.execute(
+            """INSERT INTO change_events(service,version,sha,change,deployed_at)
+               VALUES (%(service)s,%(version)s,%(sha)s,%(change)s,%(deployed_at)s)
+               RETURNING id""",
+            event,
+        ).fetchone()
+
+
+def recent_change_events(service: str, limit: int) -> list[dict[str, Any]]:
+    with conn() as c:
+        rows = c.execute(
+            """SELECT id,service,version,sha,change,deployed_at FROM change_events
+               WHERE service=%s ORDER BY deployed_at DESC LIMIT %s""",
+            (service, limit),
+        ).fetchall()
+    return [{**r, "id": f"chg-{r['id']}", "deployed_at": r["deployed_at"].isoformat()} for r in reversed(rows)]
